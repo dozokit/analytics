@@ -353,6 +353,27 @@ async function icon(url: URL) {
   });
 }
 
+// This copy's release. Raise it with each tag on github.com/dozokit/analytics (v1.1.0) and its CHANGELOG.md entry.
+const VERSION = "1.1.0";
+
+// The newest release, when it is newer than this copy. GitHub is asked at most once a day
+// per Cloudflare location (an hour after a failure); offline or rate-limited means no answer.
+async function version() {
+  let latest: string | null = null;
+  try {
+    const res = await fetch("https://api.github.com/repos/dozokit/analytics/releases/latest", {
+      headers: { accept: "application/vnd.github+json", "user-agent": "dozokit-analytics" },
+      signal: AbortSignal.timeout(3000),
+      cf: { cacheTtlByStatus: { "200-299": 24 * 3600, "300-599": 3600 }, cacheEverything: true },
+    });
+    const tag = res.ok ? String(((await res.json()) as { tag_name?: string }).tag_name ?? "").replace(/^v/, "") : "";
+    const [a, b] = [tag, VERSION].map((v) => v.split(".").map(Number));
+    const i = a.findIndex((n, k) => n !== b[k]);
+    if (/^\d+\.\d+\.\d+$/.test(tag) && i !== -1 && a[i] > b[i]) latest = tag;
+  } catch {}
+  return json({ version: VERSION, latest });
+}
+
 type Handler = (req: Request, env: Env, url: URL, id: string) => Promise<Response>;
 
 // "METHOD /path": ":id" stands for one path segment.
@@ -365,6 +386,7 @@ const ROUTES: Record<string, Handler> = {
   "GET /visitors/:id": (_r, env, url, id) => visitor(url, env, id),
   "GET /goals": (_r, env, url) => goals(url, env),
   "GET /icon": (_r, _env, url) => icon(url),
+  "GET /version": () => version(),
   "GET /sites": (_r, env) => listSites(env),
   "POST /sites": (req, env) => addSite(req, env),
   "GET /sites/:id/check": (_r, env, _u, id) => checkSite(env, id),
@@ -373,7 +395,7 @@ const ROUTES: Record<string, Handler> = {
 };
 
 // Routes that work on no particular website.
-const SITELESS = new Set(["GET /icon", "GET /sites", "POST /sites"]);
+const SITELESS = new Set(["GET /icon", "GET /version", "GET /sites", "POST /sites"]);
 
 export async function api(req: Request, env: Env, url: URL): Promise<Response> {
   const parts = url.pathname.split("/").filter(Boolean).slice(1); // drop "api"

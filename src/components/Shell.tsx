@@ -3,6 +3,7 @@ import { ALL_SITES, type Site } from "../lib/api";
 import { countryName, DIRECT_LABEL } from "../lib/format";
 import { RANGES } from "../lib/range";
 import { linkTo, navigate, useParams, type FilterKey } from "../lib/router";
+import { useFetch } from "../lib/useFetch";
 
 const NAV = [
   { path: "/", label: "Overview" },
@@ -55,6 +56,7 @@ export { Link };
 
 export function Shell({ sites, site, children, online, showRange = true }: { sites: Site[]; site: Site | null; children: ReactNode; online?: number | null; showRange?: boolean }) {
   const { path, params, set, filters } = useParams();
+  const { data: release } = useFetch<{ version: string; latest: string | null }>("/api/version");
   const section = NAV.find((n) => (n.path === "/" ? path === "/" : path.startsWith(n.path)))?.path;
 
   return (
@@ -111,6 +113,15 @@ export function Shell({ sites, site, children, online, showRange = true }: { sit
           </div>
         </div>
       </header>
+
+      {release?.latest && (
+        <p className="update container">
+          Version {release.latest} is available.{" "}
+          <a href="https://dozokit.com/analytics/guide#updating" target="_blank" rel="noopener">
+            What’s new and how to update →
+          </a>
+        </p>
+      )}
 
       {showRange && site && (
         <div className="toolbar container">

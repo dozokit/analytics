@@ -100,6 +100,10 @@ input::placeholder { color: color-mix(in oklab, var(--color-muted) 75%, transpar
   .nav-link { min-height: 44px; }
 }
 
+/* A newer release exists */
+.update { margin: 0; padding-top: var(--space-sm); color: var(--color-muted); font-size: var(--text-sm); }
+.update a { color: var(--color-ink); text-decoration: underline; text-decoration-color: var(--color-accent-2); }
+
 /* Toolbar: period and filters */
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); padding-top: var(--space-lg); }
 .filters { display: flex; flex-wrap: wrap; gap: var(--space-xs); list-style: none; margin: 0; padding: 0; }
