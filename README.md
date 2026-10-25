@@ -4,7 +4,29 @@ Web analytics that runs in your own Cloudflare account: one Worker serves the da
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/dozokit/analytics)
 
-The button copies this repository to your GitHub account, creates the Worker and its database, and asks for the dashboard's password. Then open the Worker's address and add your first website.
+## Set it up in five minutes
+
+You need a free Cloudflare account and a GitHub (or GitLab) account.
+
+1. **Click Deploy to Cloudflare** above and sign in to Cloudflare.
+2. **Connect GitHub** when asked. Cloudflare copies this repository into your account; that copy is what it builds and deploys.
+3. **Fill in the form.** Keep the names it suggests (`dozokit-analytics`) unless they clash with something you already have, and type a **password of 12 characters or more**: it is the one you will sign in to your dashboard with.
+4. **Click Create and deploy** and wait a minute or two while it builds. Cloudflare creates the Worker, its database, and the database's tables.
+5. **Open your dashboard** at the address Cloudflare shows when it is done, something like `https://dozokit-analytics.your-name.workers.dev`, and sign in with your password.
+6. **Add your website** in Settings: type its domain, then copy the one-line tag it gives you.
+7. **Paste the tag** inside the `<head>` of every page of your site (most site builders have a "custom code" or "head" setting), publish, and open your site once. Settings shows when the first visit arrives.
+
+That's it: visits show up within seconds. A few things you may want later:
+
+- **Your own address for the dashboard and the tag**, such as `stats.example.com`: in Cloudflare, open the Worker, then Settings → Domains & Routes → Add → Custom domain. Then use that address in the tag instead of `workers.dev`. The domain has to be on Cloudflare.
+- **Change the password**: in Cloudflare, open the Worker, then Settings → Variables and Secrets, and edit `PASSWORD`.
+- **Get updates**: your copy doesn't follow this repository by itself. In a clone of your copy, take the latest files while keeping your own `wrangler.jsonc` (it holds your database's id), then push; Cloudflare rebuilds and deploys on every push:
+  ```bash
+  git fetch https://github.com/dozokit/analytics main
+  git checkout FETCH_HEAD -- . ':!wrangler.jsonc'
+  git commit -m "Update Dozokit Analytics" && git push
+  ```
+- **Leave your own visits out**: open your site once with `?dozokit_ignore=1` at the end of the address.
 
 ## Run it locally
 
