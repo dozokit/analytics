@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, type Site } from "./lib/api";
+import { ALL_SITES, api, type Site } from "./lib/api";
 import { navigate, useParams } from "./lib/router";
 import { Shell } from "./components/Shell";
-import { Failed, Skeleton } from "./components/States";
+import { Empty, Failed, Skeleton } from "./components/States";
 import { Overview } from "./pages/Overview";
 import { Pages } from "./pages/Pages";
 import { Realtime } from "./pages/Realtime";
@@ -40,7 +40,12 @@ export function App() {
   }, [load]);
 
   const siteId = params.get("site");
-  const site = sites?.find((s) => s.id === siteId) ?? sites?.[0] ?? null;
+  // With more than one site, the picker also offers them all at once.
+  const allSites: Site | null =
+    sites && sites.length > 1
+      ? { id: ALL_SITES, domain: "", name: "All sites", created_at: 0, last_seen: Math.max(0, ...sites.map((s) => s.last_seen ?? 0)) || null }
+      : null;
+  const site = (siteId === ALL_SITES ? allSites : sites?.find((s) => s.id === siteId)) ?? sites?.[0] ?? null;
 
   // Keep the chosen site in the address so every link carries it.
   useEffect(() => {
@@ -72,9 +77,16 @@ export function App() {
       </Shell>
     );
   }
+  if (site.id === ALL_SITES && (path === "/goals" || path.startsWith("/visitors/"))) {
+    return (
+      <Shell sites={sites} site={site} showRange={false}>
+        <Empty>{path === "/goals" ? "Goals are set up site by site. Pick a website above to see its goals." : "A journey belongs to one site. Open it from the Visitors list."}</Empty>
+      </Shell>
+    );
+  }
 
   let page;
-  if (path === "/") page = <Overview key={site.id} site={site} onOnline={setOnline} />;
+  if (path === "/") page = <Overview key={site.id} site={site} sites={sites} onOnline={setOnline} />;
   else if (path === "/pages") page = <Pages site={site} />;
   else if (path === "/realtime") page = <Realtime key={site.id} site={site} onOnline={setOnline} />;
   else if (path === "/visitors") page = <Visitors site={site} />;

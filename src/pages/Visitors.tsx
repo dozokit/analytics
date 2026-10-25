@@ -40,15 +40,17 @@ export function Visitors({ site }: { site: Site }) {
             </thead>
             <tbody>
               {data.map((v) => {
-                const to = linkTo(`/visitors/${v.visitor_id}`, params);
+                // On All sites the journey opens on the visitor's own site.
+                const to = linkTo(`/visitors/${v.visitor_id}`, params, v.site_id ? { site: v.site_id } : {});
                 return (
-                  <tr key={v.visitor_id} onClick={() => navigate(to)}>
+                  <tr key={`${v.site_id}/${v.visitor_id}`} onClick={() => navigate(to)}>
                     <th scope="row">
                       <Link to={to} className="cell-link">
                         <VisitorTag id={v.visitor_id}>
                           <Place country={v.country} city={v.city} />
                         </VisitorTag>
                       </Link>
+                      {!site.domain && <span className="muted visitor-site">{v.domain}</span>}
                     </th>
                     <td>
                       <span className="source">

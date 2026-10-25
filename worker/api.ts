@@ -10,8 +10,23 @@ const DAY = 24 * HOUR;
 
 const isDim = (k: string): k is Dim => Object.hasOwn(DIMS, k);
 
+// `site=all` reads every site at once. Paths then carry their domain ("example.com/pricing"),
+// or the home pages of three sites would add up to one "/" row.
+const ALL = "all";
+const domainOf = (alias: string) => `(select domain from sites where id = ${alias}.site_id)`;
+const pathSql = (all: boolean, alias: string, col: string) => (all ? `${domainOf(alias)} || ${alias}.${col}` : `${alias}.${col}`);
+function dimSql(dim: Dim, all: boolean) {
+  if (dim === "entry") return pathSql(all, "s", "entry_path");
+  if (dim === "exit") return pathSql(all, "s", "exit_path");
+  return DIMS[dim];
+}
+// A visitor id is only unique within its site, so across sites it is counted with the site.
+const visitorsSql = (all: boolean, alias: string) => (all ? `count(distinct ${alias}.site_id || ':' || ${alias}.visitor_id)` : `count(distinct ${alias}.visitor_id)`);
+const siteSql = (alias: string, site: string) => (site === ALL ? { sql: "1 = 1", args: [] as unknown[] } : { sql: `${alias}.site_id = ?`, args: [site] as unknown[] });
+
 interface Scope {
   site: string;
+  all: boolean;
   from: number;
   to: number;
   where: string;
@@ -21,19 +36,26 @@ interface Scope {
 }
 
 function filterSql(url: URL, site: string) {
+  const all = site === ALL;
   const parts: string[] = [];
   const args: unknown[] = [];
   for (const key of FILTERS) {
     const value = url.searchParams.get(key);
     if (value == null) continue;
-    if (key === "page") {
+    if (key === "page" && all) {
+      // "example.com/pricing": the site by its domain, then the path on it.
+      const cut = value.indexOf("/");
+      const domain = cut === -1 ? value : value.slice(0, cut);
+      parts.push("s.site_id = (select id from sites where domain = ?) and s.id in (select session_id from pageviews where site_id = (select id from sites where domain = ?) and path = ?)");
+      args.push(domain, domain, cut === -1 ? "/" : value.slice(cut));
+    } else if (key === "page") {
       parts.push("s.id in (select session_id from pageviews where site_id = ? and path = ?)");
       args.push(site, value);
     } else if (key === "goal") {
-      parts.push("s.id in (select session_id from events where site_id = ? and name = ?)");
-      args.push(site, value);
+      parts.push(all ? "s.id in (select session_id from events where name = ?)" : "s.id in (select session_id from events where site_id = ? and name = ?)");
+      args.push(...(all ? [value] : [site, value]));
     } else {
-      parts.push(`${DIMS[key]} = ?`);
+      parts.push(`${dimSql(key, all)} = ?`);
       args.push(value);
     }
   }
@@ -42,18 +64,20 @@ function filterSql(url: URL, site: string) {
 
 async function scope(url: URL, env: Env): Promise<Scope> {
   const site = url.searchParams.get("site") ?? "";
+  const all = site === ALL;
+  const own = siteSql("s", site);
   let from = Number(url.searchParams.get("from")) || 0;
   const to = Number(url.searchParams.get("to")) || Date.now();
   if (!from) {
     // "All time": start on the local day of the first visit.
-    const first = await env.DB.prepare("select min(started_at) as t from sessions where site_id = ?").bind(site).first<{ t: number | null }>();
+    const first = await env.DB.prepare(`select min(s.started_at) as t from sessions s where ${own.sql}`).bind(...own.args).first<{ t: number | null }>();
     const tz = Math.max(-14 * HOUR, Math.min(14 * HOUR, Number(url.searchParams.get("tz")) || 0));
     const t = first?.t ?? to - 30 * DAY;
     from = Math.floor((t - tz) / DAY) * DAY + tz;
   }
   const f = filterSql(url, site);
-  const over = (a: number, b: number) => [site, a, b, ...f.args];
-  return { site, from, to, where: `s.site_id = ? and s.started_at >= ? and s.started_at < ?${f.sql}`, args: over(from, to), over };
+  const over = (a: number, b: number) => [...own.args, a, b, ...f.args];
+  return { site, all, from, to, where: `${own.sql} and s.started_at >= ? and s.started_at < ?${f.sql}`, args: over(from, to), over };
 }
 
 function bucketFor(span: number) {
@@ -62,7 +86,7 @@ function bucketFor(span: number) {
   return 7 * DAY;
 }
 
-const KPI_SQL = `count(distinct s.visitor_id) as visitors, count(*) as sessions, coalesce(sum(s.pageviews), 0) as pageviews,
+const kpiSql = (all: boolean) => `${visitorsSql(all, "s")} as visitors, count(*) as sessions, coalesce(sum(s.pageviews), 0) as pageviews,
   avg(case when s.pageviews = 1 then 1.0 else 0 end) as bounce, avg(s.last_seen - s.started_at) as duration`;
 
 const BREAKDOWNS = [...Object.keys(DIMS), "page", "goal"];
@@ -71,22 +95,22 @@ const BREAKDOWNS = [...Object.keys(DIMS), "page", "goal"];
 function breakdownQuery(db: D1Database, sc: Scope, dim: string, limit: number) {
   if (dim === "page") {
     return db.prepare(
-      `select p.path as key, count(distinct p.visitor_id) as visitors, count(*) as views
+      `select ${pathSql(sc.all, "p", "path")} as key, ${visitorsSql(sc.all, "p")} as visitors, count(*) as views
        from pageviews p join sessions s on s.site_id = p.site_id and s.id = p.session_id
-       where ${sc.where} group by p.path order by visitors desc limit ${limit}`,
+       where ${sc.where} group by key order by visitors desc limit ${limit}`,
     ).bind(...sc.args);
   }
   if (dim === "goal") {
     return db.prepare(
-      `select e.name as key, count(distinct e.visitor_id) as visitors, count(*) as completions
+      `select e.name as key, ${visitorsSql(sc.all, "e")} as visitors, count(*) as completions
        from events e join sessions s on s.site_id = e.site_id and s.id = e.session_id
        where ${sc.where} group by e.name order by visitors desc limit ${limit}`,
     ).bind(...sc.args);
   }
-  const col = DIMS[dim as Dim];
+  const col = dimSql(dim as Dim, sc.all);
   const extra = { city: ", max(s.country) as country, avg(s.lat) as lat, avg(s.lon) as lon", source: ", max(s.channel) as channel", region: ", max(s.country) as country" }[dim] ?? "";
   return db.prepare(
-    `select ${col} as key, count(distinct s.visitor_id) as visitors, count(*) as sessions${extra}
+    `select ${col} as key, ${visitorsSql(sc.all, "s")} as visitors, count(*) as sessions${extra}
      from sessions s where ${sc.where} and ${col} is not null group by key order by visitors desc limit ${limit}`,
   ).bind(...sc.args);
 }
@@ -100,21 +124,31 @@ async function dashboard(url: URL, env: Env) {
   // Only the lists on screen; the others load when their tab opens.
   const asked = url.searchParams.get("dims")?.split(",").filter((d) => BREAKDOWNS.includes(d));
   const dims = asked ?? BREAKDOWNS;
+  const own = siteSql("s", sc.site);
+  const perSite = (args: unknown[]) =>
+    db.prepare(
+      `select s.site_id as site, count(distinct s.visitor_id) as visitors, count(*) as sessions, coalesce(sum(s.pageviews), 0) as pageviews
+       from sessions s where ${sc.where} group by s.site_id`,
+    ).bind(...args);
 
   const results = await db.batch<Row>([
-    db.prepare(`select ${KPI_SQL} from sessions s where ${sc.where}`).bind(...sc.args),
-    db.prepare(`select ${KPI_SQL} from sessions s where ${sc.where}`).bind(...prevArgs),
+    db.prepare(`select ${kpiSql(sc.all)} from sessions s where ${sc.where}`).bind(...sc.args),
+    db.prepare(`select ${kpiSql(sc.all)} from sessions s where ${sc.where}`).bind(...prevArgs),
     db.prepare(
-      `select cast((s.started_at - ?) / ? as integer) as b, ${KPI_SQL} from sessions s where ${sc.where} group by b`,
+      `select cast((s.started_at - ?) / ? as integer) as b, ${kpiSql(sc.all)} from sessions s where ${sc.where} group by b`,
     ).bind(sc.from, bucket, ...sc.args),
     db.prepare(
-      `select cast((s.started_at - ?) / ? as integer) as b, ${KPI_SQL} from sessions s where ${sc.where} group by b`,
+      `select cast((s.started_at - ?) / ? as integer) as b, ${kpiSql(sc.all)} from sessions s where ${sc.where} group by b`,
     ).bind(sc.from - span, bucket, ...prevArgs),
-    db.prepare("select count(distinct visitor_id) as n from sessions where site_id = ? and last_seen > ?").bind(sc.site, Date.now() - 5 * 60_000),
+    db.prepare(`select ${visitorsSql(sc.all, "s")} as n from sessions s where ${own.sql} and s.last_seen > ?`).bind(...own.args, Date.now() - 5 * 60_000),
+    // With every site at once, each site gets its own row: visitors now and before.
+    perSite(sc.args),
+    perSite(prevArgs),
     ...dims.map((d) => breakdownQuery(db, sc, d, d === "city" ? 300 : d === "goal" ? 20 : 10)),
   ]);
 
-  const [kpis, prev, series, prevSeries, online, ...rest] = results.map((r) => r.results ?? []);
+  const [kpis, prev, series, prevSeries, online, siteNow, sitePrev, ...rest] = results.map((r) => r.results ?? []);
+  const before = new Map(sitePrev.map((r) => [r.site, r.visitors as number]));
   const breakdowns: Record<string, BreakdownRow[]> = {};
   dims.forEach((d, i) => (breakdowns[d] = rest[i] as unknown as BreakdownRow[]));
   return json<Dashboard>({
@@ -127,6 +161,7 @@ async function dashboard(url: URL, env: Env) {
     prevSeries: prevSeries as unknown as SeriesPoint[],
     online: (online[0]?.n as number) ?? 0,
     breakdowns,
+    sites: sc.all ? (siteNow.map((r) => ({ ...r, prevVisitors: before.get(r.site) ?? 0 })) as unknown as Dashboard["sites"]) : undefined,
   });
 }
 
@@ -144,14 +179,14 @@ async function pages(url: URL, env: Env) {
   const db = env.DB;
   const [rows, entries] = await db.batch<Row>([
     db.prepare(
-      `select p.path as path, max(p.title) as title, count(*) as views, count(distinct p.visitor_id) as visitors,
+      `select ${pathSql(sc.all, "p", "path")} as path, max(p.title) as title, count(*) as views, ${visitorsSql(sc.all, "p")} as visitors,
         count(distinct p.session_id) as sessions, avg(nullif(p.duration, 0)) as duration
        from pageviews p join sessions s on s.site_id = p.site_id and s.id = p.session_id
-       where ${sc.where} group by p.path order by views desc limit 200`,
+       where ${sc.where} group by 1 order by views desc limit 200`,
     ).bind(...sc.args),
     db.prepare(
-      `select s.entry_path as path, count(*) as entries, sum(case when s.pageviews = 1 then 1 else 0 end) as bounces
-       from sessions s where ${sc.where} group by s.entry_path`,
+      `select ${pathSql(sc.all, "s", "entry_path")} as path, count(*) as entries, sum(case when s.pageviews = 1 then 1 else 0 end) as bounces
+       from sessions s where ${sc.where} group by 1`,
     ).bind(...sc.args),
   ]);
   const list = rows.results ?? [];
@@ -161,9 +196,9 @@ async function pages(url: URL, env: Env) {
     const marks = top.map(() => "?").join(",");
     trend = (
       await db.prepare(
-        `select p.path as path, cast((p.ts - ?) / ? as integer) as b, count(*) as n
+        `select ${pathSql(sc.all, "p", "path")} as path, cast((p.ts - ?) / ? as integer) as b, count(*) as n
          from pageviews p join sessions s on s.site_id = p.site_id and s.id = p.session_id
-         where ${sc.where} and p.path in (${marks}) group by p.path, b`,
+         where ${sc.where} and ${pathSql(sc.all, "p", "path")} in (${marks}) group by 1, b`,
       ).bind(sc.from, bucket, ...sc.args, ...top).all()
     ).results;
   }
@@ -174,21 +209,23 @@ async function realtime(url: URL, env: Env) {
   const site = url.searchParams.get("site") ?? "";
   const now = Date.now();
   const db = env.DB;
+  const s = siteSql("s", site);
+  const p = siteSql("p", site);
   const [visitors, minutes, feed] = await db.batch<Row>([
     db.prepare(
-      `select id, visitor_id, started_at, last_seen, is_new, entry_path, exit_path, pageviews, channel, source,
-        country, region, city, lat, lon, browser, os, device
-       from sessions where site_id = ? and last_seen > ? order by last_seen desc limit 300`,
-    ).bind(site, now - 5 * 60_000),
+      `select s.id, s.site_id, ${domainOf("s")} as domain, s.visitor_id, s.started_at, s.last_seen, s.is_new, s.entry_path, s.exit_path, s.pageviews,
+        s.channel, s.source, s.country, s.region, s.city, s.lat, s.lon, s.browser, s.os, s.device
+       from sessions s where ${s.sql} and s.last_seen > ? order by s.last_seen desc limit 300`,
+    ).bind(...s.args, now - 5 * 60_000),
     db.prepare(
-      `select cast((? - ts) / 60000 as integer) as m, count(*) as views, count(distinct visitor_id) as visitors
-       from pageviews where site_id = ? and ts > ? group by m`,
-    ).bind(now, site, now - 30 * 60_000),
+      `select cast((? - p.ts) / 60000 as integer) as m, count(*) as views, ${visitorsSql(site === ALL, "p")} as visitors
+       from pageviews p where ${p.sql} and p.ts > ? group by m`,
+    ).bind(now, ...p.args, now - 30 * 60_000),
     db.prepare(
-      `select p.ts, p.path, p.visitor_id, s.country, s.city, s.source, s.channel, s.device
+      `select p.ts, p.path, ${domainOf("p")} as domain, p.visitor_id, s.country, s.city, s.source, s.channel, s.device
        from pageviews p join sessions s on s.site_id = p.site_id and s.id = p.session_id
-       where p.site_id = ? and p.ts > ? order by p.ts desc limit 40`,
-    ).bind(site, now - 30 * 60_000),
+       where ${p.sql} and p.ts > ? order by p.ts desc limit 40`,
+    ).bind(...p.args, now - 30 * 60_000),
   ]);
   return json({ now, visitors: visitors.results, minutes: minutes.results, feed: feed.results } as unknown as RealtimeData);
 }
@@ -199,12 +236,13 @@ async function visitors(url: URL, env: Env) {
   const sc = await scope(url, env);
   const r = await env.DB.prepare(
     `with v as (
-       select s.*, row_number() over (partition by s.visitor_id order by s.last_seen desc) as n,
-         count(*) over (partition by s.visitor_id) as visits, sum(s.pageviews) over (partition by s.visitor_id) as pages,
-         min(s.started_at) over (partition by s.visitor_id) as first_seen
+       select s.*, ${domainOf("s")} as domain,
+         row_number() over (partition by s.site_id, s.visitor_id order by s.last_seen desc) as n,
+         count(*) over (partition by s.site_id, s.visitor_id) as visits, sum(s.pageviews) over (partition by s.site_id, s.visitor_id) as pages,
+         min(s.started_at) over (partition by s.site_id, s.visitor_id) as first_seen
        from sessions s where ${sc.where}
      )
-     select visitor_id, started_at, last_seen, channel, source, country, city, browser, os, device, entry_path,
+     select visitor_id, site_id, domain, started_at, last_seen, channel, source, country, city, browser, os, device, entry_path,
        visits as sessions, pages as pageviews, first_seen as first, last_seen as last
      from v where n = 1 order by last_seen desc limit 200`,
   ).bind(...sc.args).all<VisitorRow>();
@@ -228,11 +266,11 @@ async function goals(url: URL, env: Env) {
   const db = env.DB;
   const [rows, total] = await db.batch<Row>([
     db.prepare(
-      `select e.name as name, count(*) as completions, count(distinct e.visitor_id) as visitors, max(e.ts) as last
+      `select e.name as name, count(*) as completions, ${visitorsSql(sc.all, "e")} as visitors, max(e.ts) as last
        from events e join sessions s on s.site_id = e.site_id and s.id = e.session_id
        where ${sc.where} group by e.name order by visitors desc`,
     ).bind(...sc.args),
-    db.prepare(`select count(distinct s.visitor_id) as visitors from sessions s where ${sc.where}`).bind(...sc.args),
+    db.prepare(`select ${visitorsSql(sc.all, "s")} as visitors from sessions s where ${sc.where}`).bind(...sc.args),
   ]);
   return json({ goals: rows.results, visitors: total.results[0]?.visitors ?? 0 } as unknown as GoalsData);
 }
@@ -351,7 +389,8 @@ export async function api(req: Request, env: Env, url: URL): Promise<Response> {
   // Every other route reads one website, named in the path or by ?site=: it has to exist.
   if (!SITELESS.has(route)) {
     const site = parts[0] === "sites" ? id : url.searchParams.get("site");
-    if (!site || !(await env.DB.prepare("select 1 from sites where id = ?").bind(site).first())) {
+    const known = site === ALL && parts[0] !== "sites" ? true : site && (await env.DB.prepare("select 1 from sites where id = ?").bind(site).first());
+    if (!known) {
       return json({ error: "There is no such website." }, 404);
     }
   }

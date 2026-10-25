@@ -18,3 +18,6 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export type * from "../../shared/types";
+
+/** The picker's "All sites": every query reads all sites at once. */
+export const ALL_SITES = "all";

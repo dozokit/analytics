@@ -26,7 +26,7 @@ const UP_FRONT = "channel,page,city,browser,direct,goal";
 
 const CHANNEL_ORDER = ["Direct", "Search", "AI", "Social", "Referral", "Email", "Paid"];
 
-export function Overview({ site, onOnline }: { site: Site; onOnline: (n: number) => void }) {
+export function Overview({ site, sites, onOnline }: { site: Site; sites: Site[]; onOnline: (n: number) => void }) {
   const { params, set } = useParams();
   const query = rangeQuery(site.id, params);
   const { data, error, loading, reload } = useFetch<Dashboard>(`/api/dashboard?${query}&dims=${UP_FRONT}`, { every: 60_000 });
@@ -79,6 +79,8 @@ export function Overview({ site, onOnline }: { site: Site; onOnline: (n: number)
           <div className="chart chart--wait" />
         )}
       </section>
+
+      {data?.sites && <SiteTable rows={data.sites} sites={sites} />}
 
       <div className="grid">
         <Breakdown
@@ -218,6 +220,58 @@ function DirectPanel({ rows, onFilter }: { rows: BreakdownRow[] | undefined; onF
           {shown && <p className="direct-note">{DIRECT_NOTE[shown]}</p>}
         </>
       )}
+    </section>
+  );
+}
+
+// On All sites: each site's share, and how it moved against the period before.
+function SiteTable({ rows, sites }: { rows: NonNullable<Dashboard["sites"]>; sites: Site[] }) {
+  const { params } = useParams();
+  const byId = new Map(rows.map((r) => [r.site, r]));
+  const list = sites
+    .map((s) => ({ s, r: byId.get(s.id) ?? { site: s.id, visitors: 0, sessions: 0, pageviews: 0, prevVisitors: 0 } }))
+    .sort((a, b) => b.r.visitors - a.r.visitors || a.s.name.localeCompare(b.s.name));
+  return (
+    <section className="panel by-site" aria-labelledby="by-site">
+      <header className="panel-head">
+        <h2 id="by-site">By site</h2>
+      </header>
+      <div className="table-wrap">
+        <table className="table table--rows">
+          <thead>
+            <tr>
+              <th scope="col">Website</th>
+              <th scope="col" className="num">Visitors</th>
+              <th scope="col" className="num">Visits</th>
+              <th scope="col" className="num">Pageviews</th>
+              <th scope="col" className="num">Change</th>
+            </tr>
+          </thead>
+          <tbody>
+            {list.map(({ s, r }) => {
+              const delta = change(r.visitors, r.prevVisitors);
+              return (
+                <tr key={s.id}>
+                  <th scope="row">
+                    <Link to={linkTo("/", params, { site: s.id })} className="cell-link">
+                      <span className="source">
+                        <Favicon host={s.domain} />
+                        {s.name}
+                      </span>
+                    </Link>
+                  </th>
+                  <td className="num fig">{count(r.visitors)}</td>
+                  <td className="num fig">{count(r.sessions)}</td>
+                  <td className="num fig">{count(r.pageviews)}</td>
+                  <td className={`num ${delta == null ? "muted" : delta >= 0 ? "is-good" : "is-bad"}`}>
+                    {delta == null ? (r.visitors ? "New" : "–") : `${delta > 0 ? "+" : ""}${Math.round(delta * 100)}%`}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { Site } from "../lib/api";
+import { ALL_SITES, type Site } from "../lib/api";
 import { countryName, DIRECT_LABEL } from "../lib/format";
 import { RANGES } from "../lib/range";
 import { linkTo, navigate, useParams, type FilterKey } from "../lib/router";
@@ -80,6 +80,7 @@ export function Shell({ sites, site, children, online, showRange = true }: { sit
                   else navigate(linkTo(path, new URLSearchParams({ range: params.get("range") ?? "" }), { site: e.target.value }));
                 }}
               >
+                {sites.length > 1 && <option value={ALL_SITES}>All sites</option>}
                 {sites.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}

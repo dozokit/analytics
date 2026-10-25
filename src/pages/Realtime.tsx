@@ -26,7 +26,7 @@ export function Realtime({ site, onOnline }: { site: Site; onOnline: (n: number)
 
   const dots = visitors
     .filter((v) => v.lat != null && v.lon != null)
-    .map((v) => ({ id: v.visitor_id, lat: v.lat!, lon: v.lon!, weight: 1, live: true, avatar: true, label: `${visitorName(v.visitor_id)} in ${v.city ?? countryName(v.country)}, on ${v.exit_path}` }));
+    .map((v) => ({ id: v.visitor_id, lat: v.lat!, lon: v.lon!, weight: 1, live: true, avatar: true, label: `${visitorName(v.visitor_id)} in ${v.city ?? countryName(v.country)}, on ${site.domain ? v.exit_path : `${v.domain}${v.exit_path}`}` }));
 
   // Oldest minute first: index 0 is 30 minutes ago, index 29 the current minute.
   const minutes = new Array<number>(30).fill(0);
@@ -57,7 +57,7 @@ export function Realtime({ site, onOnline }: { site: Site; onOnline: (n: number)
           {!data ? (
             <Skeleton rows={6} />
           ) : !visitors.length ? (
-            <Empty>Nobody is on {site.domain} right now. Visitors show up here within seconds of arriving.</Empty>
+            <Empty>Nobody is on {site.domain || "your sites"} right now. Visitors show up here within seconds of arriving.</Empty>
           ) : (
             <ul className="people">
               {visitors.map((v) => (
@@ -66,7 +66,7 @@ export function Realtime({ site, onOnline }: { site: Site; onOnline: (n: number)
                     <VisitorTag id={v.visitor_id}>
                       <Place country={v.country} city={v.city} />
                     </VisitorTag>
-                    <span className="person-page path">{v.exit_path}</span>
+                    <span className="person-page path">{site.domain ? v.exit_path : `${v.domain}${v.exit_path}`}</span>
                     <span className="person-meta">
                       <Favicon host={v.source} />
                       {v.source ?? v.channel}
@@ -76,8 +76,8 @@ export function Realtime({ site, onOnline }: { site: Site; onOnline: (n: number)
                       </span>
                     </span>
                   </button>
-                  <OpenPage domain={site.domain} path={v.exit_path} />
-                  <Link to={linkTo(`/visitors/${v.visitor_id}`, params)} className="person-open">
+                  <OpenPage domain={v.domain ?? site.domain} path={v.exit_path} />
+                  <Link to={linkTo(`/visitors/${v.visitor_id}`, params, v.site_id ? { site: v.site_id } : {})} className="person-open">
                     Journey
                   </Link>
                 </li>
@@ -133,8 +133,8 @@ export function Realtime({ site, onOnline }: { site: Site; onOnline: (n: number)
                 <time className="fig muted" dateTime={new Date(f.ts).toISOString()} title={fmt.full(f.ts)}>
                   {fmt.time(f.ts)}
                 </time>
-                <OpenPage domain={site.domain} path={f.path}>
-                  <span className="path">{f.path}</span>
+                <OpenPage domain={f.domain ?? site.domain} path={f.path}>
+                  <span className="path">{site.domain ? f.path : `${f.domain}${f.path}`}</span>
                 </OpenPage>
                 <Place country={f.country} city={f.city} />
                 <span className="muted">{f.source ?? f.channel}</span>

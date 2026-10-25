@@ -43,6 +43,8 @@ export interface Dashboard {
   prevSeries: SeriesPoint[];
   online: number;
   breakdowns: Record<string, BreakdownRow[]>;
+  /** One row per site, on All sites only. */
+  sites?: { site: string; visitors: number; sessions: number; pageviews: number; prevVisitors: number }[];
 }
 
 export interface Session {
@@ -70,6 +72,9 @@ export interface Session {
   os: string | null;
   device: string | null;
   language: string | null;
+  /** On All sites, which site a row belongs to. */
+  site_id?: string;
+  domain?: string;
 }
 
 export interface GoalsData {
@@ -99,7 +104,7 @@ export interface RealtimeData {
   now: number;
   visitors: Session[];
   minutes: { m: number; views: number; visitors: number }[];
-  feed: { ts: number; path: string; visitor_id: string; country: string | null; city: string | null; source: string | null; channel: string; device: string | null }[];
+  feed: { ts: number; path: string; domain?: string; visitor_id: string; country: string | null; city: string | null; source: string | null; channel: string; device: string | null }[];
 }
 
 // The latest visit of each person, with their totals over the period.

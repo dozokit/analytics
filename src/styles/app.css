@@ -137,6 +137,11 @@ input::placeholder { color: color-mix(in oklab, var(--color-muted) 75%, transpar
 .kpi-delta { font-size: var(--text-xs); color: var(--color-muted); }
 .kpi-delta.is-good { color: var(--color-success); }
 .kpi-delta.is-bad { color: var(--color-error); }
+/* All sites: one row per site under the chart. */
+.by-site { margin-top: var(--space-xl); }
+.by-site td.is-good { color: var(--color-success); }
+.by-site td.is-bad { color: var(--color-error); }
+.visitor-site { display: block; font-size: var(--text-sm); }
 @media (max-width: 60rem) {
   .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .kpi:nth-child(3) { border-right: 0; }

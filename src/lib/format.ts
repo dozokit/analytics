@@ -72,6 +72,11 @@ export const DIRECT_LABEL: Record<string, string> = {
 // The live page, opened so that this visit is not counted: dozokit_ignore=1 also
 // stops the browser being counted on that site afterwards.
 export function liveUrl(domain: string, path: string) {
+  // On "All sites" a path arrives with its domain in front: "example.com/pricing".
+  if (!domain) {
+    const cut = path.indexOf("/");
+    return liveUrl(cut === -1 ? path : path.slice(0, cut), cut === -1 ? "/" : path.slice(cut));
+  }
   const local = /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(domain);
   // The path only ever sets the pathname: a stored "///evil.com" cannot change the host.
   const url = new URL(`${local ? "http" : "https"}://${domain}`);

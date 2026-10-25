@@ -10,6 +10,11 @@
 
   function get(k) { try { return store ? store.getItem(k) : null; } catch (e) { return null; } }
   function put(k, v) { try { if (store) store.setItem(k, v); } catch (e) {} }
+  // Earlier versions kept the same values under tally_* names: carry them over once.
+  ["v", "vt", "s", "ignore"].forEach(function (k) {
+    var old = get("tally_" + k);
+    if (old != null && get("dozokit_" + k) == null) put("dozokit_" + k, old);
+  });
 
   // ?dozokit_ignore=1 on any page stops counting this browser; =0 resumes.
   var ignore = /[?&]dozokit_ignore=([01])/.exec(location.search);
