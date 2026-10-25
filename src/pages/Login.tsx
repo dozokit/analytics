@@ -39,7 +39,7 @@ export function Login({ onDone }: { onDone: () => void }) {
           />
         </label>
         <p id="login-help" className={error ? "help help--error" : "help"}>
-          {error ?? "The PASSWORD secret set on the Worker."}
+          {error ?? "The one you typed when you deployed, or set later in Settings."}
         </p>
         <button type="submit" className="btn btn--ink" disabled={busy}>
           {busy ? "Signing in" : "Sign in"}
@@ -56,8 +56,8 @@ export function Setup({ message }: { message: string }) {
         <h1>Set a password first</h1>
         <p className="help">{message}</p>
         <p className="help">
-          In the Cloudflare dashboard: Workers, this Worker, Settings, Variables and secrets, add a secret named <code>PASSWORD</code>. Or run{" "}
-          <code>npx wrangler secret put PASSWORD</code>.
+          In Cloudflare, open Workers &amp; Pages, then this Worker, then Settings → Variables and Secrets. Add a secret named <code>PASSWORD</code>{" "}
+          with 12 characters or more (or edit it if it is there), then reload this page.
         </p>
         <button type="button" className="btn btn--ink" onClick={() => location.reload()}>
           Reload

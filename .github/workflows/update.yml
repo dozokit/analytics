@@ -1,0 +1,21 @@
+# The update button: on GitHub, Actions → Update Dozokit Analytics → Run workflow.
+# It takes the latest version's files, keeps your wrangler.jsonc (it holds your database's id)
+# and this folder, and pushes. Cloudflare then rebuilds and deploys, database changes included.
+name: Update Dozokit Analytics
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  update:
+    if: github.repository != 'dozokit/analytics'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          git fetch --depth 1 https://github.com/dozokit/analytics main
+          git checkout FETCH_HEAD -- . ':!wrangler.jsonc' ':!.github'
+          if git diff --cached --quiet; then echo "Already up to date."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update Dozokit Analytics to $(sed -n 's/^const VERSION = "\(.*\)";/\1/p' worker/api.ts)"
+          git push

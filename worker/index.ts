@@ -1,6 +1,6 @@
 import { collect } from "./collect";
 import { api } from "./api";
-import { login, logout, passwordRequired, setupNeeded, signedIn } from "./auth";
+import { changePassword, login, logout, passwordRequired, setupNeeded, signedIn } from "./auth";
 
 export interface Env {
   DB: D1Database;
@@ -42,6 +42,7 @@ export default {
       const setup = setupNeeded(req, env);
       if (setup) return Response.json({ error: setup }, { status: 503 });
       if (!(await signedIn(req, env))) return Response.json({ error: "Sign in to see this." }, { status: 401 });
+      if (path === "/api/password" && req.method === "POST") return changePassword(req, env);
       try {
         return await api(req, env, url);
       } catch (err) {

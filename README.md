@@ -19,14 +19,13 @@ You need a free Cloudflare account and a GitHub (or GitLab) account.
 That's it: visits show up within seconds. A few things you may want later:
 
 - **Your own address for the dashboard and the tag**, such as `stats.example.com`: in Cloudflare, open the Worker, then Settings → Domains & Routes → Add → Custom domain. Then use that address in the tag instead of `workers.dev`. The domain has to be on Cloudflare.
-- **Change the password**: in Cloudflare, open the Worker, then Settings → Variables and Secrets, and edit `PASSWORD`.
-- **Get updates**: your copy doesn't follow this repository by itself. In a clone of your copy, take the latest files while keeping your own `wrangler.jsonc` (it holds your database's id), then push; Cloudflare rebuilds and deploys on every push:
+- **Change the password**: in the dashboard, Settings → Change password. Forgot it? In Cloudflare, open the Worker, then Settings → Variables and Secrets, and edit `PASSWORD`: that password works again.
+- **Get updates**: the dashboard tells you when a newer version is out. Open your copy on GitHub, then **Actions** → **Update Dozokit Analytics** → **Run workflow**. It takes the latest files but keeps your `wrangler.jsonc` (it holds your database's id), and Cloudflare rebuilds and deploys within a couple of minutes, database changes included. [CHANGELOG.md](CHANGELOG.md) says what changed. If your copy is older than 1.2.0 and has no Actions button yet, see [the guide](https://dozokit.com/analytics/guide#updating). From a terminal, in a clone of your copy:
   ```bash
   git fetch https://github.com/dozokit/analytics main
   git checkout FETCH_HEAD -- . ':!wrangler.jsonc'
   git commit -m "Update Dozokit Analytics" && git push
   ```
-  The deploy applies any database changes. The dashboard tells you when a newer version is out, and [CHANGELOG.md](CHANGELOG.md) says what changed.
 - **Leave your own visits out**: open your site once with `?dozokit_ignore=1` at the end of the address.
 
 ## Run it locally
