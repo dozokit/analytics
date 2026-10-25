@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dozokit Analytics test page</title>
+  <script defer data-site="demo" data-local src="/t.js"></script>
+</head>
+<body>
+  <p>A page that counts itself on the <code>demo</code> site.</p>
+  <p><a href="/demo.html?page=2" onclick="history.pushState({}, '', '/pricing'); return false;">Go to /pricing (client-side)</a></p>
+  <p><button type="button" data-dozokit-goal="signup">Fire the signup goal</button></p>
+</body>
+</html>

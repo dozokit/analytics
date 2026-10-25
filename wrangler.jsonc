@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dozokit-analytics",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  // No database_id: the Deploy button creates the database, or `wrangler d1 create` adds it here.
+  "d1_databases": [{ "binding": "DB", "database_name": "dozokit-analytics", "migrations_dir": "migrations" }],
+  // Sign-in attempts per address, and hits per address and site on the tracking endpoint.
+  // namespace_id only has to be unique in your Cloudflare account: change it if it clashes.
+  "ratelimits": [
+    { "name": "LOGIN_LIMIT", "namespace_id": "7301", "simple": { "limit": 5, "period": 60 } },
+    { "name": "COLLECT_LIMIT", "namespace_id": "7302", "simple": { "limit": 600, "period": 60 } }
+  ],
+  // Deletes visits older than 25 months, every day at 03:17 UTC.
+  "triggers": { "crons": ["17 3 * * *"] },
+  "observability": { "enabled": true }
+}
