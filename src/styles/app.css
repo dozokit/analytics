@@ -208,6 +208,7 @@ button.row { cursor: pointer; }
 button.row:hover .row-bar { background: var(--row-fill-hover); }
 button.row:hover .row-key { text-decoration: underline; text-decoration-color: var(--color-accent-2); text-underline-offset: 0.16em; }
 .row-key { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-sub { display: block; overflow: hidden; text-overflow: ellipsis; color: var(--color-muted); font-size: var(--text-xs); }
 .row-value { font-size: var(--text-sm); }
 .row-share { width: 3.5ch; text-align: right; color: var(--color-muted); font-size: var(--text-xs); }
 .panel-more { margin-top: var(--space-xs); padding: var(--space-2xs) var(--space-xs); border: 0; background: none; color: var(--color-ink-2); font-size: var(--text-sm); font-weight: 500; text-decoration: underline; text-decoration-color: var(--color-rule-2); text-underline-offset: 0.2em; cursor: pointer; }

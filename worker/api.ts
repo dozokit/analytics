@@ -145,12 +145,24 @@ async function dashboard(url: URL, env: Env) {
     perSite(sc.args),
     perSite(prevArgs),
     ...dims.map((d) => breakdownQuery(db, sc, d, d === "city" ? 300 : d === "goal" ? 20 : 10)),
+    // Where each goal fires: its site and page, most visitors first.
+    ...(dims.includes("goal") ? [db.prepare(
+      `select e.name as name, ${domainOf("e")} as domain, e.path as path, ${visitorsSql(sc.all, "e")} as visitors
+       from events e join sessions s on s.site_id = e.site_id and s.id = e.session_id
+       where ${sc.where} and e.path is not null group by e.name, e.site_id, e.path order by visitors desc`,
+    ).bind(...sc.args)] : []),
   ]);
 
   const [kpis, prev, series, prevSeries, online, siteNow, sitePrev, ...rest] = results.map((r) => r.results ?? []);
+  const goalPages = dims.includes("goal") ? rest.pop()! : [];
   const before = new Map(sitePrev.map((r) => [r.site, r.visitors as number]));
   const breakdowns: Record<string, BreakdownRow[]> = {};
   dims.forEach((d, i) => (breakdowns[d] = rest[i] as unknown as BreakdownRow[]));
+  for (const goal of breakdowns.goal ?? []) {
+    const where = goalPages.filter((r) => r.name === goal.key);
+    goal.pages = where.slice(0, 3).map((r) => ({ domain: r.domain as string, path: r.path as string }));
+    goal.morePages = Math.max(0, where.length - 3);
+  }
   return json<Dashboard>({
     from: sc.from,
     to: sc.to,
@@ -354,7 +366,7 @@ async function icon(url: URL) {
 }
 
 // This copy's release. Raise it with each tag on github.com/dozokit/analytics (v1.1.0) and its CHANGELOG.md entry.
-const VERSION = "1.2.2";
+const VERSION = "1.3.0";
 
 // The newest release, when it is newer than this copy. GitHub is asked at most once a day
 // per Cloudflare location (an hour after a failure); offline or rate-limited means no answer.

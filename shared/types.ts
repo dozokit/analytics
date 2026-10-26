@@ -31,6 +31,9 @@ export interface BreakdownRow {
   channel?: string | null;
   lat?: number | null;
   lon?: number | null;
+  /** Goals only: the top pages it fires on, and how many more there are. */
+  pages?: { domain: string; path: string }[];
+  morePages?: number;
 }
 
 export interface Dashboard {

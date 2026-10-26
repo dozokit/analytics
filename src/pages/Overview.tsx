@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { BreakdownRow, Dashboard, Kpis, Site } from "../lib/api";
+import { ALL_SITES, type BreakdownRow, type Dashboard, type Kpis, type Site } from "../lib/api";
 import { change, count, countryName, DIRECT_LABEL, duration, percent } from "../lib/format";
 import { rangeQuery } from "../lib/range";
 import { linkTo, useParams } from "../lib/router";
@@ -146,6 +146,7 @@ export function Overview({ site, sites, onOnline }: { site: Site; sites: Site[];
               rows: b?.goal,
               filter: "goal",
               allQuery: null,
+              render: (r) => <GoalWhere row={r} all={site.id === ALL_SITES} />,
               custom:
                 b && !b.goal?.length ? (
                   <Empty action={<Link to={linkTo("/goals", params)} className="btn btn--quiet">Set up goals</Link>}>
@@ -157,6 +158,23 @@ export function Overview({ site, sites, onOnline }: { site: Site; sites: Site[];
         />
       </div>
     </div>
+  );
+}
+
+// The goal's name, then where it fires: "founderhood.app · /submit, /browse +1".
+function GoalWhere({ row, all }: { row: BreakdownRow; all: boolean }) {
+  const groups: { domain: string; paths: string[] }[] = [];
+  for (const p of row.pages ?? []) {
+    const last = groups.at(-1);
+    if (last?.domain === p.domain) last.paths.push(p.path);
+    else groups.push({ domain: p.domain, paths: [p.path] });
+  }
+  const where = groups.map((g) => (all ? `${g.domain} · ` : "") + g.paths.join(", ")).join("; ");
+  return (
+    <>
+      {row.key}
+      {where && <span className="row-sub">{where}{row.morePages ? ` +${row.morePages}` : ""}</span>}
+    </>
   );
 }
 
