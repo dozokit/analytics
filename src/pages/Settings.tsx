@@ -3,6 +3,7 @@ import { api, type Site } from "../lib/api";
 import { ago, count } from "../lib/format";
 import { navigate, useParams } from "../lib/router";
 import { Snippet } from "../components/Snippet";
+import { TurnOnUpdates } from "../components/TurnOnUpdates";
 
 function AddSite({ onAdded, first }: { onAdded: (s: Site) => void; first: boolean }) {
   const [domain, setDomain] = useState("");
@@ -251,6 +252,11 @@ export function Settings({ sites, onSites, passwordRequired }: { sites: Site[]; 
           <ChangePassword />
         </section>
       )}
+
+      <section className="page-section how">
+        <h2>Updates</h2>
+        <TurnOnUpdates />
+      </section>
 
       {passwordRequired && (
         <section className="page-section">

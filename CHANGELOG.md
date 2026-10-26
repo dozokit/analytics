@@ -2,6 +2,10 @@
 
 How to update your copy: [dozokit.com/analytics/guide#updating](https://dozokit.com/analytics/guide#updating).
 
+## 1.2.1 – 2026-10-26
+
+- Settings → Updates adds the update button to your GitHub copy in one click. Cloudflare's Deploy button leaves it out, so copies made with the button need this once.
+
 ## 1.2.0 – 2026-10-25
 
 - Update with a click: on GitHub, Actions → Update Dozokit Analytics → Run workflow.
