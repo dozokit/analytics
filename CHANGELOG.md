@@ -2,6 +2,11 @@
 
 How to update your copy: [dozokit.com/analytics/guide#updating](https://dozokit.com/analytics/guide#updating).
 
+## 1.2.2 – 2026-10-26
+
+- The update button installs only the latest release, and only once it checks the release is signed with Dozokit's release key, which lives on one computer. A release that isn't signed with it is refused and nothing changes. Before, it took the newest files on GitHub as they were.
+- Settings → Updates has Replace it, for copies that added the update button before 1.2.2: press it once to get the signed one.
+
 ## 1.2.1 – 2026-10-26
 
 - Settings → Updates adds the update button to your GitHub copy in one click. Cloudflare's Deploy button leaves it out, so copies made with the button need this once.

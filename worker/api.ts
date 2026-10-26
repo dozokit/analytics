@@ -354,7 +354,7 @@ async function icon(url: URL) {
 }
 
 // This copy's release. Raise it with each tag on github.com/dozokit/analytics (v1.1.0) and its CHANGELOG.md entry.
-const VERSION = "1.2.1";
+const VERSION = "1.2.2";
 
 // The newest release, when it is newer than this copy. GitHub is asked at most once a day
 // per Cloudflare location (an hour after a failure); offline or rate-limited means no answer.

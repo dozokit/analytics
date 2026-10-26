@@ -20,11 +20,12 @@ That's it: visits show up within seconds. A few things you may want later:
 
 - **Your own address for the dashboard and the tag**, such as `stats.example.com`: in Cloudflare, open the Worker, then Settings → Domains & Routes → Add → Custom domain. Then use that address in the tag instead of `workers.dev`. The domain has to be on Cloudflare.
 - **Change the password**: in the dashboard, Settings → Change password. Forgot it? In Cloudflare, open the Worker, then Settings → Variables and Secrets, and edit `PASSWORD`: that password works again.
-- **Get updates**: the dashboard tells you when a newer version is out. Open your copy on GitHub, then **Actions** → **Update Dozokit Analytics** → **Run workflow**. It takes the latest files but keeps your `wrangler.jsonc` (it holds your database's id), and Cloudflare rebuilds and deploys within a couple of minutes, database changes included. [CHANGELOG.md](CHANGELOG.md) says what changed. **The first time**, add that button: Cloudflare's Deploy button copies everything except `.github`, so open Settings → Updates on your stats site, paste your copy's address and click **Add the update button**, then **Commit changes** on GitHub. Details: [the guide](https://dozokit.com/analytics/guide#updating). From a terminal, in a clone of your copy:
+- **Get updates**: the dashboard tells you when a newer version is out. Open your copy on GitHub, then **Actions** → **Update Dozokit Analytics** → **Run workflow**. It installs the latest release, once it checks the release is signed with Dozokit's release key (a wrong or missing signature stops it and changes nothing), and keeps your `wrangler.jsonc` (it holds your database's id), and Cloudflare rebuilds and deploys within a couple of minutes, database changes included. [CHANGELOG.md](CHANGELOG.md) says what changed. **The first time**, add that button: Cloudflare's Deploy button copies everything except `.github`, so open Settings → Updates on your stats site, paste your copy's address and click **Add the update button**, then **Commit changes** on GitHub. Added it before 1.2.2? Press **Replace it** there instead: GitHub opens the file with the new version on your clipboard, so select everything, paste and **Commit changes**. Details: [the guide](https://dozokit.com/analytics/guide#updating). From a terminal, in a clone of your copy:
   ```bash
-  git fetch https://github.com/dozokit/analytics main
-  git checkout FETCH_HEAD -- . ':!wrangler.jsonc'
-  git commit -m "Update Dozokit Analytics" && git push
+  tag=$(curl -s https://api.github.com/repos/dozokit/analytics/releases/latest | grep -o '"tag_name": *"[^"]*"' | cut -d'"' -f4)
+  git fetch https://github.com/dozokit/analytics tag "$tag"
+  git checkout "$tag" -- . ':!wrangler.jsonc' ':!.github'
+  git commit -m "Update Dozokit Analytics to $tag" && git push
   ```
 - **Leave your own visits out**: open your site once with `?dozokit_ignore=1` at the end of the address.
 
