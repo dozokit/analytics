@@ -2,6 +2,10 @@
 
 How to update your copy: [dozokit.com/analytics/guide#updating](https://dozokit.com/analytics/guide#updating).
 
+## 1.3.1 – 2026-10-27
+
+- On a phone, the site picker, the online count and Settings share one row, and the section tabs scroll sideways instead of being cut off.
+
 ## 1.3.0 – 2026-10-26
 
 - Overview → Goals shows under each goal where it fires: its top pages, and on All sites the site too.

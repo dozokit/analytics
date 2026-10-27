@@ -69,7 +69,7 @@ export function Shell({ sites, site, children, online, showRange = true }: { sit
                 <path d="M3 17V9M8 17V4M13 17v-6M18 17V7" />
               </svg>
             </span>
-            Dozokit Analytics
+            <span className="wordmark-name">Dozokit Analytics</span>
           </Link>
 
           {site && (

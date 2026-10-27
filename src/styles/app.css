@@ -96,8 +96,16 @@ input::placeholder { color: color-mix(in oklab, var(--color-muted) 75%, transpar
 
 @media (max-width: 60rem) {
   .topbar-inner { flex-wrap: wrap; gap: var(--space-sm); padding-block: var(--space-xs); }
-  .nav { order: 3; width: 100%; margin-inline: calc(var(--space-sm) * -1); }
+  /* Full width, so the tabs scroll off the screen's edge instead of stopping short of it. */
+  .nav { order: 3; width: calc(100% + 2 * var(--gutter)); margin-inline: calc(var(--gutter) * -1); padding-inline: calc(var(--gutter) - var(--space-sm)); }
   .nav-link { min-height: 44px; }
+}
+/* On a phone the picker, the online count and Settings share one row: the wordmark keeps its mark. */
+@media (max-width: 40rem) {
+  .wordmark-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .site-picker { flex: 1 1 0; min-width: 0; }
+  .site-picker select { width: 100%; }
+  .topbar-end { gap: var(--space-2xs); }
 }
 
 /* A newer release exists */
