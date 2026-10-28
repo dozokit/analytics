@@ -4,6 +4,7 @@ import { ago, count } from "../lib/format";
 import { navigate, useParams } from "../lib/router";
 import { Snippet } from "../components/Snippet";
 import { TurnOnUpdates } from "../components/TurnOnUpdates";
+import { useFetch } from "../lib/useFetch";
 
 function AddSite({ onAdded, first }: { onAdded: (s: Site) => void; first: boolean }) {
   const [domain, setDomain] = useState("");
@@ -193,6 +194,41 @@ function ChangePassword() {
   );
 }
 
+// On by default: once a day the dashboard asks dozokit.com whether a newer version is out.
+function ShareCount() {
+  const { data } = useFetch<{ share: boolean }>("/api/version");
+  const [share, setShare] = useState<boolean | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const on = share ?? data?.share ?? true;
+  return (
+    <div className="share-count">
+      <label>
+        <input
+          type="checkbox"
+          checked={on}
+          disabled={!data}
+          onChange={async (e) => {
+            const next = e.target.checked;
+            setShare(next);
+            setError(null);
+            try {
+              await api("/api/version", { method: "PUT", body: JSON.stringify({ share: next }) });
+            } catch (err) {
+              setShare(!next);
+              setError((err as Error).message);
+            }
+          }}
+        />{" "}
+        Check for new versions
+      </label>
+      <p className={error ? "help help--error" : "help"} role="status">
+        {error ??
+          "Once a day, this dashboard asks Dozokit whether a new version is out. It sends only its version number and a random number made for this copy, nothing about your websites or your visitors. Turned off, nothing is sent and you won't hear about new versions."}
+      </p>
+    </div>
+  );
+}
+
 export function Settings({ sites, onSites, passwordRequired }: { sites: Site[]; onSites: (s: Site[]) => void; passwordRequired: boolean }) {
   const { params } = useParams();
   const [added, setAdded] = useState<Site | null>(null);
@@ -256,6 +292,7 @@ export function Settings({ sites, onSites, passwordRequired }: { sites: Site[]; 
       <section className="page-section how">
         <h2>Updates</h2>
         <TurnOnUpdates />
+        <ShareCount />
       </section>
 
       {passwordRequired && (

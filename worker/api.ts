@@ -366,24 +366,41 @@ async function icon(url: URL) {
 }
 
 // This copy's release. Raise it with each tag on github.com/dozokit/analytics (v1.1.0) and its CHANGELOG.md entry.
-const VERSION = "1.3.1";
+const VERSION = "1.3.2";
 
-// The newest release, when it is newer than this copy. GitHub is asked at most once a day
-// per Cloudflare location (an hour after a failure); offline or rate-limited means no answer.
-async function version() {
+// This copy's random id and whether it checks for new versions, made on first use.
+async function install(env: Env) {
+  await env.DB.prepare("insert or ignore into install (id, uid) values (1, ?)").bind(crypto.randomUUID()).run();
+  return (await env.DB.prepare("select uid, share from install where id = 1").first<{ uid: string; share: number }>())!;
+}
+
+// The newest release, when it is newer than this copy. dozokit.com is asked at most once a day per
+// Cloudflare location (an hour after a failure) and counts this copy: its version and random id,
+// nothing else. Offline means no answer; with the check turned off, nothing is asked.
+async function version(env: Env) {
+  const { uid, share } = await install(env);
   let latest: string | null = null;
+  if (!share) return json({ version: VERSION, latest, share: false });
   try {
-    const res = await fetch("https://api.github.com/repos/dozokit/analytics/releases/latest", {
-      headers: { accept: "application/vnd.github+json", "user-agent": "dozokit-analytics" },
+    const res = await fetch(`https://dozokit.com/api/latest?app=analytics&v=${VERSION}&id=${uid}`, {
+      headers: { "user-agent": "dozokit-analytics" },
       signal: AbortSignal.timeout(3000),
       cf: { cacheTtlByStatus: { "200-299": 24 * 3600, "300-599": 3600 }, cacheEverything: true },
     });
-    const tag = res.ok ? String(((await res.json()) as { tag_name?: string }).tag_name ?? "").replace(/^v/, "") : "";
+    const tag = res.ok ? String(((await res.json()) as { latest?: string }).latest ?? "") : "";
     const [a, b] = [tag, VERSION].map((v) => v.split(".").map(Number));
     const i = a.findIndex((n, k) => n !== b[k]);
     if (/^\d+\.\d+\.\d+$/.test(tag) && i !== -1 && a[i] > b[i]) latest = tag;
   } catch {}
-  return json({ version: VERSION, latest });
+  return json({ version: VERSION, latest, share: true });
+}
+
+async function setShare(req: Request, env: Env) {
+  const { share } = (await req.json().catch(() => ({}))) as { share?: unknown };
+  if (typeof share !== "boolean") return json({ error: "Say true or false." }, 400);
+  await install(env);
+  await env.DB.prepare("update install set share = ? where id = 1").bind(share ? 1 : 0).run();
+  return json({ share });
 }
 
 type Handler = (req: Request, env: Env, url: URL, id: string) => Promise<Response>;
@@ -398,7 +415,8 @@ const ROUTES: Record<string, Handler> = {
   "GET /visitors/:id": (_r, env, url, id) => visitor(url, env, id),
   "GET /goals": (_r, env, url) => goals(url, env),
   "GET /icon": (_r, _env, url) => icon(url),
-  "GET /version": () => version(),
+  "GET /version": (_r, env) => version(env),
+  "PUT /version": (req, env) => setShare(req, env),
   "GET /sites": (_r, env) => listSites(env),
   "POST /sites": (req, env) => addSite(req, env),
   "GET /sites/:id/check": (_r, env, _u, id) => checkSite(env, id),
@@ -407,7 +425,7 @@ const ROUTES: Record<string, Handler> = {
 };
 
 // Routes that work on no particular website.
-const SITELESS = new Set(["GET /icon", "GET /version", "GET /sites", "POST /sites"]);
+const SITELESS = new Set(["GET /icon", "GET /version", "PUT /version", "GET /sites", "POST /sites"]);
 
 export async function api(req: Request, env: Env, url: URL): Promise<Response> {
   const parts = url.pathname.split("/").filter(Boolean).slice(1); // drop "api"

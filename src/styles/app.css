@@ -456,3 +456,7 @@ button.row:hover .row-key { text-decoration: underline; text-decoration-color: v
 .map-avatar .avatar { display: block; }
 .map-popup .maplibregl-popup-content { padding: var(--space-2xs) var(--space-xs); border-radius: var(--radius-input); background: var(--color-board); color: var(--color-board-type); font-family: var(--font-body); font-size: var(--text-xs); box-shadow: var(--cast-stock); }
 .map-popup .maplibregl-popup-tip { display: none; }
+
+.share-count { margin-top: var(--space-md); }
+.share-count label { display: flex; align-items: center; gap: 0.5rem; font-weight: 600; }
+.share-count input { width: 1.1rem; height: 1.1rem; accent-color: var(--color-ink); }

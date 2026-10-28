@@ -2,6 +2,10 @@
 
 How to update your copy: [dozokit.com/analytics/guide#updating](https://dozokit.com/analytics/guide#updating).
 
+## 1.3.2 – 2026-10-28
+
+- The dashboard checks for new versions with Dozokit instead of GitHub. Once a day it sends only its version number and a random number made for this copy, nothing about your websites or visitors. You can turn the check off in Settings → Updates: then nothing is sent, and you won't hear about new versions.
+
 ## 1.3.1 – 2026-10-27
 
 - On a phone, the site picker, the online count and Settings share one row, and the section tabs scroll sideways instead of being cut off.

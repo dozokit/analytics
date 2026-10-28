@@ -27,6 +27,7 @@ That's it: visits show up within seconds. A few things you may want later:
   git checkout "$tag" -- . ':!wrangler.jsonc' ':!.github'
   git commit -m "Update Dozokit Analytics to $tag" && git push
   ```
+- **Checking for new versions**: once a day the dashboard asks dozokit.com whether a new version is out, sending only its version number and a random number made for this copy, never anything about your websites or visitors. Turn it off in Settings → Updates: nothing is sent then, and the dashboard no longer tells you about new versions.
 - **Leave your own visits out**: open your site once with `?dozokit_ignore=1` at the end of the address.
 
 ## Run it locally
@@ -83,7 +84,7 @@ Revenue attribution (Stripe, Polar, Dodo) is not built. It would add a `payments
 
 ## Third parties
 
-Your visitors' browsers only talk to your Worker. The dashboard itself loads its General Sans font from Fontshare and its map tiles from OpenFreeMap, so those two see your IP address and which map area you look at. Referrer icons are fetched by the Worker from DuckDuckGo, not by your browser. Once a day the Worker asks GitHub for the latest release, to tell you on the dashboard when a newer version exists.
+Your visitors' browsers only talk to your Worker. The dashboard itself loads its General Sans font from Fontshare and its map tiles from OpenFreeMap, so those two see your IP address and which map area you look at. Referrer icons are fetched by the Worker from DuckDuckGo, not by your browser. Once a day the Worker asks dozokit.com for the latest release, to tell you on the dashboard when a newer version exists (Settings → Updates turns this off).
 
 ## License
 
