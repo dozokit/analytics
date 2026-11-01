@@ -310,6 +310,12 @@ export function Settings({ sites, onSites, passwordRequired }: { sites: Site[]; 
           </button>
         </section>
       )}
+
+      <p className="muted">
+        <a href="https://ideas.dozokit.com/b/analytics" target="_blank" rel="noopener">
+          Send feedback on Dozokit Analytics ↗
+        </a>
+      </p>
     </div>
   );
 }

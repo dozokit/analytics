@@ -366,7 +366,7 @@ async function icon(url: URL) {
 }
 
 // This copy's release. Raise it with each tag on github.com/dozokit/analytics (v1.1.0) and its CHANGELOG.md entry.
-const VERSION = "1.3.2";
+const VERSION = "1.3.3";
 
 // This copy's random id and whether it checks for new versions, made on first use.
 async function install(env: Env) {

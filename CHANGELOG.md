@@ -2,6 +2,10 @@
 
 How to update your copy: [dozokit.com/analytics/guide#updating](https://dozokit.com/analytics/guide#updating).
 
+## 1.3.3 – 2026-11-01
+
+- Settings → Send feedback on Dozokit Analytics opens Dozokit's own board, to tell us what to add or fix.
+
 ## 1.3.2 – 2026-10-28
 
 - The dashboard checks for new versions with Dozokit instead of GitHub. Once a day it sends only its version number and a random number made for this copy, nothing about your websites or visitors. You can turn the check off in Settings → Updates: then nothing is sent, and you won't hear about new versions.
