@@ -63,7 +63,9 @@ export default {
       "delete from sessions where rowid in (select rowid from sessions where last_seen < ? limit 5000)",
     ];
     for (const sql of steps) {
-      for (let round = 0; round < 50; round++) {
+      // Three kinds of rows, 16 rounds each: the free plan allows 50 database calls per run. A larger
+      // backlog carries on the next day.
+      for (let round = 0; round < 16; round++) {
         const r = await env.DB.prepare(sql).bind(cutoff).run();
         if (r.meta.changes < 5000) break;
       }

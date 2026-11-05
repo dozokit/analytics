@@ -2,6 +2,11 @@
 
 How to update your copy: [dozokit.com/analytics/guide#updating](https://dozokit.com/analytics/guide#updating).
 
+## 1.3.4 – 2026-11-05
+
+- A password changed in Settings is checked within the free plan's 10 ms of computing per request. Your next sign-in updates it on its own and signs your other devices out once.
+- The daily cleanup of visits older than 25 months stays within the free plan's 50 database calls per run.
+
 ## 1.3.3 – 2026-11-01
 
 - Settings → Send feedback on Dozokit Analytics opens Dozokit's own board, to tell us what to add or fix.

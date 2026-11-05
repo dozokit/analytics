@@ -17,9 +17,13 @@ async function sign(value: string, secret: string) {
   return b64(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value)));
 }
 
-async function pbkdf2(password: string, salt: string) {
+// 10,000 rounds is about 1.5 ms of CPU; 100,000 was 15 ms, which the Workers Free plan's 10 ms
+// refuses. The password has 12 characters or more and sign-in is rate limited.
+const ITERATIONS = 10_000;
+
+async function pbkdf2(password: string, salt: string, iterations = ITERATIONS) {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
-  return b64(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: new TextEncoder().encode(salt), iterations: 100_000 }, key, 256));
+  return b64(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: new TextEncoder().encode(salt), iterations }, key, 256));
 }
 
 // Compares the two values' MACs, so neither their content nor their length leaks through timing.
@@ -32,11 +36,19 @@ async function same(a: string, b: string, secret: string) {
 
 // The password in force: the one set in Settings while the PASSWORD secret is still the one it
 // replaced, else the secret. Editing the secret in Cloudflare is how a forgotten password is reset.
-// `key` signs the session cookie, so changing the password signs every other device out.
+// `key` signs the session cookie, so changing the password signs every other device out, and so
+// does the one-time rehash of a hash made with more rounds.
 async function current(env: Env & { PASSWORD: string }) {
-  const row = await env.DB.prepare("select hash, salt, secret_mac from password where id = 1").first<{ hash: string; salt: string; secret_mac: string }>();
+  const row = await env.DB.prepare("select hash, salt, secret_mac, iterations from password where id = 1").first<{ hash: string; salt: string; secret_mac: string; iterations: number }>();
   if (row && row.secret_mac === (await sign("replaced", env.PASSWORD))) {
-    return { key: row.hash, check: async (pw: string) => same(await pbkdf2(pw, row.salt), row.hash, row.hash) };
+    const check = async (pw: string) => {
+      if (!(await same(await pbkdf2(pw, row.salt, row.iterations), row.hash, row.hash))) return false;
+      if (row.iterations !== ITERATIONS) {
+        await env.DB.prepare("update password set hash = ?, iterations = ? where id = 1").bind(await pbkdf2(pw, row.salt), ITERATIONS).run();
+      }
+      return true;
+    };
+    return { key: row.hash, check };
   }
   return { key: env.PASSWORD, check: (pw: string) => same(pw, env.PASSWORD, env.PASSWORD) };
 }
@@ -81,10 +93,11 @@ export async function login(req: Request, env: Env) {
   const tooMany = await limited(req, env);
   if (tooMany) return tooMany;
   const body = (await req.json().catch(() => ({}))) as { password?: string };
-  const { key, check } = await current(env as Env & { PASSWORD: string });
+  const { check } = await current(env as Env & { PASSWORD: string });
   if (typeof body.password !== "string" || !(await check(body.password))) {
     return Response.json({ error: "That password is not the one set for this dashboard." }, { status: 401 });
   }
+  const { key } = await current(env as Env & { PASSWORD: string });
   return Response.json({ ok: true }, { headers: { "set-cookie": await session(req, key) } });
 }
 
@@ -103,8 +116,8 @@ export async function changePassword(req: Request, env: Env) {
   }
   const salt = b64(crypto.getRandomValues(new Uint8Array(16)).buffer);
   const hash = await pbkdf2(body.next, salt);
-  await env.DB.prepare("insert or replace into password (id, hash, salt, secret_mac, changed_at) values (1, ?, ?, ?, ?)")
-    .bind(hash, salt, await sign("replaced", env.PASSWORD), Date.now())
+  await env.DB.prepare("insert or replace into password (id, hash, salt, secret_mac, changed_at, iterations) values (1, ?, ?, ?, ?, ?)")
+    .bind(hash, salt, await sign("replaced", env.PASSWORD), Date.now(), ITERATIONS)
     .run();
   return Response.json({ ok: true }, { headers: { "set-cookie": await session(req, hash) } });
 }
